@@ -1,19 +1,18 @@
-module Auth exposing
-    ( Config, Credentials, Status(..)
-    , login, refresh, logout, unauthed
-    , Model, Msg, init, update
+module TheSett.Auth exposing
+    ( Config, Model, Msg
+    , api
     )
 
 {-| Manages the state of the authentication process, and provides an API
 to request authentication operations.
 
-@docs Config, Credentials, Status
-@docs login, refresh, logout, unauthed
-@docs Model, Msg, init, update
+@docs Config, Model, Msg
+@docs api
 
 -}
 
 import Auth.Service
+import AuthAPI exposing (AuthAPI, Credentials, Status(..))
 import AuthState exposing (AuthState, Authenticated)
 import Http
 import Jwt exposing (Token)
@@ -23,6 +22,21 @@ import Result
 import Task
 import Time exposing (Posix)
 import Utils exposing (message)
+
+
+
+-- The Auth API implementation.
+
+
+api : AuthAPI Config Model Msg Never {}
+api =
+    { init = init
+    , login = login
+    , logout = logout
+    , unauthed = unauthed
+    , refresh = refresh
+    , update = update
+    }
 
 
 
@@ -43,25 +57,6 @@ second =
 type alias Config =
     { authApiRoot : String
     }
-
-
-{-| Username and password based login credentials.
--}
-type alias Credentials =
-    { username : String
-    , password : String
-    }
-
-
-{-| Auth states of interest to the consumer.
--}
-type Status
-    = Failed
-    | LoggedOut
-    | LoggedIn
-        { scopes : List String
-        , subject : String
-        }
 
 
 {-| Requests that a login be performed.
@@ -134,7 +129,7 @@ init config =
 
 {-| Updates the model from Auth commands.
 -}
-update : Msg -> Model -> ( Model, Cmd Msg, Maybe Status )
+update : Msg -> Model -> ( Model, Cmd Msg, Maybe (Status Never) )
 update msg model =
     let
         ( innerModel, cmds, maybeStatus ) =
@@ -163,7 +158,7 @@ setAuthState inner model =
 
 {-| Extracts a summary view of the authentication status from the model.
 -}
-getStatus : AuthState -> Status
+getStatus : AuthState -> Status Never
 getStatus authState =
     let
         extract : AuthState.State p { auth : Authenticated } -> { scopes : List String, subject : String }
@@ -197,7 +192,7 @@ getStatus authState =
 {-| Compares two AuthStates and outputs the status of the newer one, if it differs
 from the older one, otherwise Nothing.
 -}
-statusChange : AuthState -> AuthState -> Maybe Status
+statusChange : AuthState -> AuthState -> Maybe (Status Never)
 statusChange oldAuthState newAuthState =
     let
         oldStatus =
@@ -243,7 +238,7 @@ failed authState state =
 {-| Updates the auth state and triggers events needed to communicate with the
 auth server.
 -}
-innerUpdate : String -> Msg -> AuthState -> ( AuthState, Cmd Msg, Maybe Status )
+innerUpdate : String -> Msg -> AuthState -> ( AuthState, Cmd Msg, Maybe (Status Never) )
 innerUpdate authApiRoot msg authState =
     case ( msg, authState ) of
         ( LogIn credentials, AuthState.LoggedOut state ) ->
@@ -325,7 +320,7 @@ toLoggedInFromToken :
     -> Token
     -> AuthState
     -> AuthState.State { p | loggedIn : AuthState.Allowed } m
-    -> ( AuthState, Cmd Msg, Maybe Status )
+    -> ( AuthState, Cmd Msg, Maybe (Status Never) )
 toLoggedInFromToken authApiRoot token decodedToken authState state =
     let
         authModel =
