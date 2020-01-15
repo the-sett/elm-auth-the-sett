@@ -120,11 +120,12 @@ type Msg
 
 {-| The initial unauthed state.
 -}
-init : Config -> Model
+init : Config -> Result String Model
 init config =
-    { authApiRoot = config.authApiRoot
-    , innerModel = Private AuthState.loggedOut
-    }
+    Ok
+        { authApiRoot = config.authApiRoot
+        , innerModel = Private AuthState.loggedOut
+        }
 
 
 {-| Updates the model from Auth commands.
